@@ -1,0 +1,20 @@
+======================================================================
+数据集数量统计结果
+======================================================================
+DATASET_ROOT: D:\Graduation_Design\Dataset_Unified
+
+[统一数据集划分]
+train: images=4333, masks=4333
+  val: images=2748, masks=2748
+TOTAL: images=7081, masks=7081
+
+[来源数据集统计]
+DUKE: 218 张 | method=filename_keyword | 仅供参考/未识别
+    keywords=['duke'], scanned=7081
+RETOUCH: 0 张 | method=source_dir | 可靠
+    D:\Graduation_Design\RETOUCH
+
+[说明]
+1. 如果 DUKE / RETOUCH 显示“未识别”，说明脚本没有找到对应原始文件夹，且统一数据集文件名中也没有可识别关键词。
+2. 若要得到准确来源数量，请在脚本开头 SOURCE_DIRS 中填写 DUKE / RETOUCH 原始数据文件夹路径。
+3. train/val/test 的数量以 Dataset_Unified 目录下实际文件为准。

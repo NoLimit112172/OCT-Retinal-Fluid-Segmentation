@@ -1,0 +1,5 @@
+﻿Section,Name,Image_Count,Mask_Count,Method,Path_or_Rule,Reliable
+UnifiedSplit,train,4333,4333,directory_count,images=D:\Graduation_Design\Dataset_Unified\train\images | masks=D:\Graduation_Design\Dataset_Unified\train\masks,True
+UnifiedSplit,val,2748,2748,directory_count,images=D:\Graduation_Design\Dataset_Unified\val\images | masks=D:\Graduation_Design\Dataset_Unified\val\masks,True
+SourceDataset,DUKE,218,,filename_keyword,"keywords=['duke'], scanned=7081",False
+SourceDataset,RETOUCH,0,,source_dir,D:\Graduation_Design\RETOUCH,True

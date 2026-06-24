@@ -1,0 +1,33 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---- 虚拟环境 ----
+.venv/
+venv/
+env/
+
+# ---- IDE ----
+.idea/
+.vscode/
+
+# ---- 模型权重 / 训练产物（体积大，不入库）----
+checkpoints*/
+*.pth
+*.pt
+*.ckpt
+
+# ---- 数据集（请勿上传原始医学影像数据）----
+data/
+dataset/
+Dataset_Unified/
+2015_BOE_Chiu/
+*.mat
+*.nii
+*.nii.gz
+
+# ---- 系统文件 ----
+.DS_Store
+Thumbs.db

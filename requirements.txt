@@ -1,0 +1,21 @@
+# 深度学习框架（CUDA 11.8 版本，如用 CPU 或其他 CUDA 版本请到 pytorch.org 选择对应命令安装）
+torch==2.7.1+cu118
+torchvision==0.22.1+cu118
+torchaudio==2.7.1+cu118
+
+# 科学计算与数据处理
+numpy==2.4.0
+scipy==1.16.3
+pandas==2.3.3
+scikit-learn==1.8.0
+
+# 图像与医学影像
+pillow==12.0.0
+SimpleITK==2.5.3
+
+# 可视化
+matplotlib==3.10.8
+
+# 工具
+tqdm==4.67.1
+colorama==0.4.6

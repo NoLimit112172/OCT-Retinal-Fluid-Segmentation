@@ -1,0 +1,20 @@
+========================================================================
+数据集来源数量统计结果
+========================================================================
+DATASET_ROOT: D:\Graduation_Design\Dataset_Unified
+
+识别规则：
+  文件名包含 RET / ret  → RETOUCH
+  其他文件              → DUKE
+
+[按划分统计]
+train: images=4333, masks=4333, DUKE=160, RETOUCH=4173
+  val: images=2748, masks=2748, DUKE=58, RETOUCH=2690
+
+[总计]
+Images Total : 7081
+Masks Total  : 7081
+DUKE         : 218
+RETOUCH      : 6863
+
+校验：DUKE + RETOUCH = Images Total，统计通过。

@@ -1,0 +1,259 @@
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class ConvNormAct(nn.Module):
+    """Conv -> InstanceNorm -> LeakyReLU"""
+
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
+        super().__init__()
+        padding = kernel_size // 2
+        self.block = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
+            nn.InstanceNorm2d(out_channels, affine=True),
+            nn.LeakyReLU(0.01, inplace=True),
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class ResidualConvBlock(nn.Module):
+    """nnU-Net 风格残差卷积块"""
+
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv1 = ConvNormAct(in_channels, out_channels)
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False),
+            nn.InstanceNorm2d(out_channels, affine=True),
+        )
+        self.act = nn.LeakyReLU(0.01, inplace=True)
+
+        if in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                nn.InstanceNorm2d(out_channels, affine=True),
+            )
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x):
+        return self.act(self.conv2(self.conv1(x)) + self.shortcut(x))
+
+
+class DownBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.down = nn.Sequential(
+            ConvNormAct(in_channels, out_channels, kernel_size=3, stride=2),
+            ResidualConvBlock(out_channels, out_channels),
+        )
+
+    def forward(self, x):
+        return self.down(x)
+
+
+class SDA(nn.Module):
+    """
+    SDA: Self-adaptive Dual Attention
+
+    作用：skip feature 自增强。
+    - Pixel/spatial relation attention: 建模空间位置关系。
+    - Channel relation attention: 建模通道关系。
+    - gamma 残差门控：避免训练初期破坏原始 skip feature。
+    """
+
+    def __init__(self, channels, pool_size=4):
+        super().__init__()
+        self.pool_size = pool_size
+        self.alpha = nn.Parameter(torch.tensor(1.0))
+        self.beta = nn.Parameter(torch.tensor(1.0))
+        self.gamma = nn.Parameter(torch.tensor(0.1))
+
+    def forward(self, x):
+        b, c, h, w = x.shape
+
+        if self.pool_size > 1:
+            xd = F.max_pool2d(x, kernel_size=self.pool_size, stride=self.pool_size)
+        else:
+            xd = x
+
+        hp, wp = xd.shape[2], xd.shape[3]
+        n = hp * wp
+
+        xr = xd.view(b, c, n)          # B,C,N
+        xr_t = xr.permute(0, 2, 1)     # B,N,C
+
+        # 空间/像素注意力：N x N
+        att_pixel = torch.bmm(xr_t, xr)
+        att_pixel = F.softmax(att_pixel / max(n ** 0.5, 1.0), dim=-1)
+        pixel_feat = torch.bmm(att_pixel, xr_t).permute(0, 2, 1).contiguous()
+        pixel_feat = pixel_feat.view(b, c, hp, wp)
+        pixel_feat = F.interpolate(pixel_feat, size=(h, w), mode="bilinear", align_corners=False)
+
+        # 通道注意力：C x C
+        att_channel = torch.bmm(xr, xr_t)
+        att_channel = F.softmax(att_channel / max(c ** 0.5, 1.0), dim=-1)
+        channel_feat = torch.bmm(att_channel, xr).view(b, c, hp, wp)
+        channel_feat = F.interpolate(channel_feat, size=(h, w), mode="bilinear", align_corners=False)
+
+        enhanced = x + 0.5 * (self.alpha * pixel_feat + self.beta * channel_feat)
+        return x + self.gamma * (enhanced - x)
+
+
+class SASC(nn.Module):
+    """
+    SASC: Skip Adaptive Selective Calibration
+
+    作用：decoder-guided skip calibration。
+    和 SDA 不同，SASC 使用 decoder 上采样后的语义特征来筛选 skip feature，
+    发生在 concat 之前。
+    """
+
+    def __init__(self, channels, reduction=16, spatial_kernel=7):
+        super().__init__()
+        hidden = max(channels // reduction, 8)
+
+        # 通道选择：skip + decoder_up 的全局描述
+        self.channel_gate = nn.Sequential(
+            nn.Conv2d(channels * 2, hidden, kernel_size=1, bias=False),
+            nn.LeakyReLU(0.01, inplace=True),
+            nn.Conv2d(hidden, channels, kernel_size=1, bias=False),
+            nn.Sigmoid(),
+        )
+
+        # 空间选择：skip 和 decoder_up 的 avg/max 响应图
+        padding = spatial_kernel // 2
+        self.spatial_gate = nn.Sequential(
+            nn.Conv2d(4, 1, kernel_size=spatial_kernel, padding=padding, bias=False),
+            nn.Sigmoid(),
+        )
+
+        self.refine = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False),
+            nn.InstanceNorm2d(channels, affine=True),
+            nn.LeakyReLU(0.01, inplace=True),
+        )
+
+        self.gamma = nn.Parameter(torch.tensor(0.1))
+
+    def forward(self, skip, decoder_up):
+        if skip.shape[2:] != decoder_up.shape[2:]:
+            decoder_up = F.interpolate(decoder_up, size=skip.shape[2:], mode="bilinear", align_corners=False)
+
+        joint = torch.cat([skip, decoder_up], dim=1)
+
+        ch_gate = self.channel_gate(F.adaptive_avg_pool2d(joint, 1))
+
+        skip_avg = torch.mean(skip, dim=1, keepdim=True)
+        skip_max, _ = torch.max(skip, dim=1, keepdim=True)
+        dec_avg = torch.mean(decoder_up, dim=1, keepdim=True)
+        dec_max, _ = torch.max(decoder_up, dim=1, keepdim=True)
+        sp_gate = self.spatial_gate(torch.cat([skip_avg, skip_max, dec_avg, dec_max], dim=1))
+
+        selected = skip * ch_gate * sp_gate
+        selected = self.refine(selected)
+
+        return skip + self.gamma * (selected - skip)
+
+
+class UpBlockSASC(nn.Module):
+    """上采样 -> SASC校准skip -> concat -> 残差融合"""
+
+    def __init__(self, in_channels, skip_channels, out_channels):
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+
+        if out_channels != skip_channels:
+            self.align_decoder = nn.Conv2d(out_channels, skip_channels, kernel_size=1, bias=False)
+        else:
+            self.align_decoder = nn.Identity()
+
+        self.sasc = SASC(skip_channels)
+        self.fuse = ResidualConvBlock(out_channels + skip_channels, out_channels)
+
+    def forward(self, x, skip):
+        x = self.up(x)
+
+        diff_y = skip.size(2) - x.size(2)
+        diff_x = skip.size(3) - x.size(3)
+        if diff_x != 0 or diff_y != 0:
+            x = F.pad(x, [diff_x // 2, diff_x - diff_x // 2,
+                          diff_y // 2, diff_y - diff_y // 2])
+
+        skip = self.sasc(skip, self.align_decoder(x))
+        x = torch.cat([skip, x], dim=1)
+        return self.fuse(x)
+
+
+class nnUNet(nn.Module):
+    """
+    nnU-Net + SDA/SASC v2
+
+    两个模块都明确起作用：
+    1. SDA：先增强 x1/x2/x3/x4 四个 skip feature。
+    2. SASC：每一级 decoder 上采样后，用 decoder_up 引导 SDA 后的 skip 做校准。
+    """
+
+    def __init__(self, n_channels=1, n_classes=4, base_channels=32):
+        super().__init__()
+        c1 = base_channels
+        c2 = base_channels * 2
+        c3 = base_channels * 4
+        c4 = base_channels * 8
+        c5 = base_channels * 10
+
+        self.enc1 = ResidualConvBlock(n_channels, c1)
+        self.enc2 = DownBlock(c1, c2)
+        self.enc3 = DownBlock(c2, c3)
+        self.enc4 = DownBlock(c3, c4)
+        self.enc5 = DownBlock(c4, c5)
+
+        # SDA 只作用在 skip 上，不作用在 bottleneck。
+        self.sda1 = SDA(c1, pool_size=8)  # 256 -> 32
+        self.sda2 = SDA(c2, pool_size=4)  # 128 -> 32
+        self.sda3 = SDA(c3, pool_size=2)  # 64 -> 32
+        self.sda4 = SDA(c4, pool_size=1)  # 32 -> 32
+
+        # SASC 在每一级 concat 之前起作用。
+        self.up1 = UpBlockSASC(c5, c4, c4)
+        self.up2 = UpBlockSASC(c4, c3, c3)
+        self.up3 = UpBlockSASC(c3, c2, c2)
+        self.up4 = UpBlockSASC(c2, c1, c1)
+
+        self.out_conv = nn.Conv2d(c1, n_classes, kernel_size=1)
+
+    def forward(self, x):
+        x1 = self.enc1(x)
+        x2 = self.enc2(x1)
+        x3 = self.enc3(x2)
+        x4 = self.enc4(x3)
+        x5 = self.enc5(x4)
+
+        s1 = self.sda1(x1)
+        s2 = self.sda2(x2)
+        s3 = self.sda3(x3)
+        s4 = self.sda4(x4)
+
+        d1 = self.up1(x5, s4)
+        d2 = self.up2(d1, s3)
+        d3 = self.up3(d2, s2)
+        d4 = self.up4(d3, s1)
+
+        return self.out_conv(d4)
+
+
+if __name__ == "__main__":
+    model = nnUNet(n_channels=1, n_classes=4)
+    x = torch.randn(2, 1, 256, 256)
+    y = model(x)
+    print("input :", x.shape)
+    print("output:", y.shape)
+
+    sda_params = [n for n, _ in model.named_parameters() if "sda" in n]
+    sasc_params = [n for n, _ in model.named_parameters() if "sasc" in n]
+    print(f"SDA parameter tensors : {len(sda_params)}")
+    print(f"SASC parameter tensors: {len(sasc_params)}")

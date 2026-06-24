@@ -1,0 +1,5 @@
+﻿Split,Images_Total,Masks_Total,DUKE_Count,RETOUCH_Count,Image_Dir,Mask_Dir
+train,4333,4333,160,4173,D:\Graduation_Design\Dataset_Unified\train\images,D:\Graduation_Design\Dataset_Unified\train\masks
+val,2748,2748,58,2690,D:\Graduation_Design\Dataset_Unified\val\images,D:\Graduation_Design\Dataset_Unified\val\masks
+
+TOTAL,7081,7081,218,6863,,

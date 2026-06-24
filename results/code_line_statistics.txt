@@ -1,0 +1,43 @@
+==========================================================================================
+Python 源代码量统计
+==========================================================================================
+统计根目录: D:\Graduation_Design\OCT_Segmentation\.venv
+==========================================================================================
+count_dataset_sources_by_ret.py               总行数: 219   有效代码行: 173   空行: 45    注释行: 1    
+evaluate_ablation_nnunet_by_dataset_oldstyle.py 总行数: 404   有效代码行: 317   空行: 86    注释行: 1    
+evaluate_ablation_nnunet_oldstyle.py          总行数: 391   有效代码行: 315   空行: 76    注释行: 0    
+evaluate_all_models_oldstyle.py               总行数: 542   有效代码行: 428   空行: 105   注释行: 9    
+evaluate_baseline_models_by_dataset_oldstyle.py 总行数: 402   有效代码行: 315   空行: 86    注释行: 1    
+evaluate_baseline_models_oldstyle.py          总行数: 375   有效代码行: 299   空行: 76    注释行: 0    
+evaluate_comparison.py                        总行数: 390   有效代码行: 307   空行: 76    注释行: 7    
+extract_duke_mat_original_slices.py           总行数: 290   有效代码行: 217   空行: 71    注释行: 2    
+extract_retouch_raw_original_slices.py        总行数: 238   有效代码行: 184   空行: 54    注释行: 0    
+gui.py                                        总行数: 1728  有效代码行: 1446  空行: 252   注释行: 30   
+model.py                                      总行数: 139   有效代码行: 94    空行: 33    注释行: 12   
+model_attention.py                            总行数: 163   有效代码行: 110   空行: 39    注释行: 14   
+model_nnunet_base.py                          总行数: 157   有效代码行: 119   空行: 34    注释行: 4    
+model_nnunet_cbam_decoder.py                  总行数: 235   有效代码行: 182   空行: 50    注释行: 3    
+model_nnunet_eca_cbam.py                      总行数: 244   有效代码行: 189   空行: 55    注释行: 0    
+model_nnunet_eca_encoder.py                   总行数: 195   有效代码行: 149   空行: 40    注释行: 6    
+model_nnunet_sasc.py                          总行数: 256   有效代码行: 194   空行: 52    注释行: 10   
+model_nnunet_sda.py                           总行数: 217   有效代码行: 161   空行: 48    注释行: 8    
+model_nnunet_sda_sasc.py                      总行数: 259   有效代码行: 192   空行: 61    注释行: 6    
+model_segnet.py                               总行数: 134   有效代码行: 100   空行: 34    注释行: 0    
+preprocess_data.py                            总行数: 249   有效代码行: 167   空行: 56    注释行: 26   
+train.py                                      总行数: 268   有效代码行: 210   空行: 53    注释行: 5    
+train_attention.py                            总行数: 267   有效代码行: 210   空行: 53    注释行: 4    
+train_nnunet_base.py                          总行数: 305   有效代码行: 237   空行: 62    注释行: 6    
+train_nnunet_cbam_decoder.py                  总行数: 256   有效代码行: 197   空行: 54    注释行: 5    
+train_nnunet_eca_cbam.py                      总行数: 288   有效代码行: 223   空行: 65    注释行: 0    
+train_nnunet_eca_encoder.py                   总行数: 251   有效代码行: 193   空行: 53    注释行: 5    
+train_nnunet_sasc.py                          总行数: 312   有效代码行: 233   空行: 69    注释行: 10   
+train_nnunet_sda.py                           总行数: 256   有效代码行: 197   空行: 54    注释行: 5    
+train_nnunet_sda_sasc.py                      总行数: 273   有效代码行: 210   空行: 62    注释行: 1    
+train_segnet.py                               总行数: 308   有效代码行: 235   空行: 67    注释行: 6    
+==========================================================================================
+Python 文件数量: 31
+总代码行数: 10011
+有效代码行数: 7803
+空行数: 2021
+注释行数: 187
+==========================================================================================
